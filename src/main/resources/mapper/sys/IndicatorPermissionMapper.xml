@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hospital.indicator.mapper.sys.IndicatorPermissionMapper">
+
+    <select id="selectVisibleIndicators" resultType="com.hospital.indicator.entity.Indicator">
+        SELECT DISTINCT ti.*
+        FROM t_indicator ti
+        JOIN t_indicator_dept_scope tids ON ti.metric_code = tids.metric_code
+        WHERE ti.status = 1
+        <if test="pool != null and pool != ''">
+            AND ti.metric_pool = #{pool}
+        </if>
+        -- 科室范围：当前科室本身，如果当前科室是业务单元（dept_level > 1），则允许继承其直属父科室（主科室）的指标
+        AND tids.root_dept_id IN (
+            SELECT #{deptId}
+            UNION
+            SELECT parent_id FROM sys_dept
+            WHERE dept_id = #{deptId} AND parent_id > 0 AND dept_level > 1
+        )
+        -- 业务方向过滤：指标的方向包含在用户的方向列表中
+        <if test="directions != null and directions.size() > 0">
+            AND (
+                <foreach collection="directions" item="dir" separator=" OR ">
+                    ti.business_direction LIKE CONCAT('%', #{dir}, '%')
+                </foreach>
+            )
+        </if>
+        ORDER BY ti.sort_order
+    </select>
+
+    <select id="selectVisibleMetricCodes" resultType="java.lang.String">
+        SELECT DISTINCT tids.metric_code
+        FROM t_indicator_dept_scope tids
+        WHERE tids.root_dept_id IN (
+            -- 当前科室本身
+            SELECT #{deptId}
+            UNION
+            -- 如果当前科室是业务单元（dept_level > 1），则允许继承其直属父科室的指标
+            SELECT parent_id FROM sys_dept WHERE dept_id = #{deptId} AND parent_id > 0 AND dept_level > 1
+        )
+    </select>
+
+    <select id="selectAllIndicators" resultType="com.hospital.indicator.entity.Indicator">
+        SELECT * FROM t_indicator
+        WHERE status = 1
+        <if test="pool != null and pool != ''">
+            AND ti.metric_pool = #{pool}
+        </if>
+        ORDER BY sort_order
+    </select>
+
+</mapper>
