@@ -19,6 +19,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
+
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -506,6 +513,102 @@ public class IndicatorResultController {
         resp.put("timeValues",    timeValues);
         resp.put("series",        series);
         return resp;
+    }
+
+    // =========================================================================
+    // 导出 Excel
+    // =========================================================================
+
+    @Operation(summary = "导出指标结果 Excel",
+               description = "与 /list 接口参数完全一致，结果以 Excel 文件流形式下载")
+    @GetMapping("/export")
+    public void export(
+            @Parameter(description = "指标编码") @RequestParam(required = false) String metricCode,
+            @Parameter(description = "时间维度") @RequestParam(required = false) String timeDimension,
+            @Parameter(description = "时间值，如 2020 或 2020-01") @RequestParam(required = false) String timeValue,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(description = "数据来源：AUTO/MANUAL") @RequestParam(required = false) String sourceType,
+            HttpServletResponse response) throws IOException {
+
+        // ── 复用 /list 的查询逻辑 ──────────────────────────────────
+        List<String> visibleCodes = getVisibleMetricCodes();
+        if (visibleCodes != null && visibleCodes.isEmpty()) {
+            writeEmptyExcel(response, "指标结果");
+            return;
+        }
+
+        LambdaQueryWrapper<IndicatorResult> wrapper = new LambdaQueryWrapper<>();
+        if (visibleCodes != null) {
+            wrapper.in(IndicatorResult::getMetricCode, visibleCodes);
+        }
+        if (StringUtils.isNotBlank(metricCode)) {
+            wrapper.eq(IndicatorResult::getMetricCode, metricCode);
+        }
+        if (StringUtils.isNotBlank(timeDimension)) {
+            wrapper.eq(IndicatorResult::getTimeDimension, timeDimension);
+        }
+        if (StringUtils.isNotBlank(timeValue)) {
+            wrapper.eq(IndicatorResult::getTimeValue, timeValue);
+        }
+        if (StringUtils.isNotBlank(startDate)) {
+            wrapper.ge(IndicatorResult::getStartDate, LocalDate.parse(startDate, DATE_FORMATTER));
+        }
+        if (StringUtils.isNotBlank(endDate)) {
+            wrapper.le(IndicatorResult::getEndDate, LocalDate.parse(endDate, DATE_FORMATTER));
+        }
+        applySourceTypeFilter(wrapper, sourceType, visibleCodes);
+        wrapper.orderByDesc(IndicatorResult::getTimeValue);
+
+        List<IndicatorResult> results = resultMapper.selectList(wrapper);
+
+        // ── 构造表头 + 数据行 ──────────────────────────────────────
+        List<List<String>> head = Arrays.asList(
+                Collections.singletonList("指标编码"),
+                Collections.singletonList("时间维度"),
+                Collections.singletonList("时间值"),
+                Collections.singletonList("开始日期"),
+                Collections.singletonList("结束日期"),
+                Collections.singletonList("计算结果"),
+                Collections.singletonList("同比(%)"),
+                Collections.singletonList("环比(%)"),
+                Collections.singletonList("计算状态"),
+                Collections.singletonList("计算时间")
+        );
+        List<List<Object>> rows = new ArrayList<>();
+        for (IndicatorResult r : results) {
+            rows.add(Arrays.asList(
+                    r.getMetricCode(),
+                    r.getTimeDimension(),
+                    r.getTimeValue(),
+                    r.getStartDate() != null ? r.getStartDate().toString() : "",
+                    r.getEndDate()   != null ? r.getEndDate().toString()   : "",
+                    r.getResultValue(),
+                    r.getYearOverYear(),
+                    r.getMonthOverMonth(),
+                    r.getCalculationStatus(),
+                    r.getCreateTime() != null ? r.getCreateTime().toString() : ""
+            ));
+        }
+
+        String filename = URLEncoder.encode("指标结果导出.xlsx", StandardCharsets.UTF_8.name())
+                .replace("+", "%20");
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        response.setHeader("Content-Disposition", "attachment;filename*=utf-8''" + filename);
+
+        EasyExcel.write(response.getOutputStream())
+                .head(head)
+                .registerWriteHandler(new LongestMatchColumnWidthStyleStrategy())
+                .sheet("指标结果")
+                .doWrite(rows);
+    }
+
+    private void writeEmptyExcel(HttpServletResponse response, String sheetName) throws IOException {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        response.setHeader("Content-Disposition", "attachment;filename=empty.xlsx");
+        EasyExcel.write(response.getOutputStream()).sheet(sheetName).doWrite(Collections.emptyList());
     }
 
 }
