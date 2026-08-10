@@ -111,3 +111,10 @@ jwt:
   header: Authorization
   # 令牌前缀
   prefix: "Bearer "
+
+# 大查询自动分片拆解配置
+indicator:
+  shard:
+    slice:
+      timeout-seconds: 30        # 单片 SQL 超时(秒),超时即失败重试/中止
+

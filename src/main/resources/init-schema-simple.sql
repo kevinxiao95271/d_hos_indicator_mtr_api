@@ -101,4 +101,40 @@ INSERT INTO t_indicator (metric_code, metric_name, parent_code, indicator_level,
 ('10.3.2', '肺炎（住院、成人）平均住院日', '10.3', 3, 1, 'QUANTITATIVE', 'EXPRESSION', 'a0052/a0050', '["a0050","a0052"]', '天', 1, 1, 1032)
 ON DUPLICATE KEY UPDATE expression = VALUES(expression);
 
+-- 分片任务表
+CREATE TABLE IF NOT EXISTS `shard_task` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '任务ID',
+    `biz_type` VARCHAR(32) NOT NULL COMMENT '业务类型:INDICATOR_CALC/MID_TABLE_INIT/MID_TABLE_COL_RULE/SPECIAL_DISEASE_ENROLL/TRACE_QUERY',
+    `biz_key` VARCHAR(128) COMMENT '业务标识,如 metricCode=A01&timeDim=MONTH&start=2026-01&end=2026-06',
+    `shard_strategy` VARCHAR(32) NOT NULL COMMENT '拆片策略:TIME_SLICE/KEY_SLICE/ROW_SLICE/NO_SHARD',
+    `total_slices` INT NOT NULL DEFAULT 1 COMMENT '总分片数',
+    `done_slices` INT NOT NULL DEFAULT 0 COMMENT '已完成分片数',
+    `status` VARCHAR(16) NOT NULL DEFAULT 'PENDING' COMMENT '任务状态:PENDING/RUNNING/SUCCESS/PARTIAL_FAILED/FAILED/CANCELED',
+    `progress_percent` DECIMAL(5,2) NOT NULL DEFAULT 0 COMMENT '进度百分比(0~100)',
+    `fail_policy` VARCHAR(16) NOT NULL DEFAULT 'STOP' COMMENT '失败策略:STOP(默认)/CONTINUE',
+    `submitter` VARCHAR(64) COMMENT '提交人',
+    `error_msg` TEXT COMMENT '失败汇总信息',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_status` (`status`),
+    KEY `idx_biz_type` (`biz_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分片任务表';
+
+-- 分片任务切片表
+CREATE TABLE IF NOT EXISTS `shard_task_slice` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '切片ID',
+    `task_id` BIGINT NOT NULL COMMENT '所属任务ID',
+    `slice_no` INT NOT NULL COMMENT '片序号',
+    `slice_params` VARCHAR(512) COMMENT '本片参数JSON',
+    `status` VARCHAR(16) NOT NULL DEFAULT 'PENDING' COMMENT '状态:PENDING/RUNNING/SUCCESS/FAILED/CANCELED',
+    `result_summary` VARCHAR(512) COMMENT '本片结果摘要(行数/值)',
+    `error_msg` VARCHAR(1024) COMMENT '本片错误信息',
+    `start_time` DATETIME COMMENT '执行开始时间',
+    `end_time` DATETIME COMMENT '执行结束时间',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_task` (`task_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分片任务切片表';
+
 SELECT 'Schema created successfully!' as status;
