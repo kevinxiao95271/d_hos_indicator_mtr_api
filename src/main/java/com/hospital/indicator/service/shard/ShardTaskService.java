@@ -70,8 +70,9 @@ public class ShardTaskService {
          * 执行一片。参数即提交时该片的参数(JSON)。
          *
          * @return 本片结果摘要(行数/值),写入 slice.result_summary
+         * @throws Exception 执行异常
          */
-        String execute(Map<String, Object> params);
+        String execute(Map<String, Object> params) throws Exception;
     }
 
     /** 注册业务执行器 */
@@ -400,13 +401,9 @@ public class ShardTaskService {
 
     // ─── 简单工具 ────────────────────────────────────────────────
 
-    /** 根据分片参数推断策略(可被业务侧覆盖,见 detectStrategy) */
+    /** 根据分片参数推断策略(委托给 SliceGenerator) */
     private String detectStrategy(List<Map<String, Object>> slices) {
-        boolean hasKeyList = slices.stream().anyMatch(s -> s.containsKey("keys"));
-        if (hasKeyList) return ShardTask.STRATEGY_KEY_SLICE;
-        boolean hasTime = slices.stream().anyMatch(s -> s.containsKey("start") || s.containsKey("end"));
-        if (hasTime) return ShardTask.STRATEGY_TIME_SLICE;
-        return ShardTask.STRATEGY_NO_SHARD;
+        return com.hospital.indicator.util.SliceGenerator.detectStrategy(slices);
     }
 
     private String toJson(Map<String, Object> map) {
