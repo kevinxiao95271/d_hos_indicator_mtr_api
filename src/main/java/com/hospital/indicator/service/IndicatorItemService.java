@@ -1,8 +1,7 @@
 package com.hospital.indicator.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.hospital.indicator.dto.IndicatorItemExecuteResultDTO;
-import com.hospital.indicator.dto.IndicatorItemSaveDTO;
+import com.hospital.indicator.dto.*;
 import com.hospital.indicator.entity.IndicatorItem;
 
 import java.util.Map;
@@ -45,5 +44,52 @@ public interface IndicatorItemService extends IService<IndicatorItem> {
      * @return 是否有效
      */
     boolean validateSql(String sql);
+
+    /**
+     * EXPLAIN分析SQL
+     * @param sql SQL语句
+     * @return EXPLAIN结果
+     */
+    ExplainResult analyzeWithExplain(String sql);
+
+    /**
+     * 从SQL中识别可用于切片的日期字段
+     * @param sql SQL语句
+     * @param params 参数
+     * @return 字段名，如：入院日期
+     */
+    String detectSliceField(String sql, Map<String, Object> params);
+
+    /**
+     * 仅分析，不执行
+     * @param itemCode 指标项编码
+     * @param params 参数
+     * @return 分析结果（包含EXPLAIN信息和切片建议）
+     */
+    Map<String, Object> analyzeOnly(String itemCode, Map<String, Object> params);
+
+    /**
+     * 直接执行（不切片）
+     * @param itemCode 指标项编码
+     * @param params 参数
+     * @return 执行结果
+     */
+    Map<String, Object> executeDirect(String itemCode, Map<String, Object> params);
+
+    /**
+     * 切片执行
+     * @param itemCode 指标项编码
+     * @param params 参数
+     * @param sliceConfig 切片配置
+     * @return 执行结果
+     */
+    Map<String, Object> executeWithSlice(String itemCode, Map<String, Object> params, SliceConfig sliceConfig);
+
+    /**
+     * 根据itemCode获取指标项
+     * @param itemCode 指标项编码
+     * @return 指标项
+     */
+    IndicatorItem getByItemCode(String itemCode);
 
 }

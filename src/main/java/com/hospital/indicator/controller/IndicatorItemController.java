@@ -3,7 +3,9 @@ package com.hospital.indicator.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.hospital.indicator.common.BusinessException;
 import com.hospital.indicator.common.Result;
+import com.hospital.indicator.dto.ExecuteRequest;
 import com.hospital.indicator.dto.IndicatorItemExecuteResultDTO;
 import com.hospital.indicator.dto.IndicatorItemSaveDTO;
 import com.hospital.indicator.entity.IndicatorItem;
@@ -129,6 +131,41 @@ public class IndicatorItemController {
             return Result.success("执行指标项查询成功", result);
         } else {
             return Result.error("执行指标项查询失败：" + result.getErrorMessage());
+        }
+    }
+
+    @Operation(summary = "执行指标项（支持EXPLAIN分析和切片）", description = "支持ANALYZE/DIRECT/SLICE三种执行模式")
+    @PostMapping("/{itemCode}/execute-v2")
+    public Result<Map<String, Object>> executeV2(
+            @Parameter(description = "指标项编码") @PathVariable String itemCode,
+            @RequestBody ExecuteRequest request) {
+
+        IndicatorItem item = indicatorItemService.getByItemCode(itemCode);
+        if (item == null) {
+            throw new BusinessException("指标项不存在: " + itemCode);
+        }
+
+        String mode = request.getExecutionMode();
+        if (mode == null) {
+            mode = "ANALYZE";
+        }
+
+        switch (mode.toUpperCase()) {
+            case "ANALYZE":
+                return Result.success(indicatorItemService.analyzeOnly(itemCode, request.getParams()));
+
+            case "SLICE":
+                if (request.getSliceConfig() == null) {
+                    throw new BusinessException("切片执行模式必须提供sliceConfig参数");
+                }
+                return Result.success(indicatorItemService.executeWithSlice(
+                        itemCode, request.getParams(), request.getSliceConfig()));
+
+            case "DIRECT":
+                return Result.success(indicatorItemService.executeDirect(itemCode, request.getParams()));
+
+            default:
+                throw new BusinessException("不支持的执行模式: " + mode);
         }
     }
 
