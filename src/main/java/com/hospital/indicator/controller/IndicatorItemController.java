@@ -169,6 +169,29 @@ public class IndicatorItemController {
         }
     }
 
+    @Operation(summary = "EXPLAIN分析指标项SQL", description = "对指标项SQL执行EXPLAIN分析，返回预估行数、是否全表扫描、切片建议等")
+    @PostMapping("/{itemCode}/explain")
+    public Result<Map<String, Object>> explain(
+            @Parameter(description = "指标项编码") @PathVariable String itemCode,
+            @RequestBody Map<String, Object> params) {
+        return Result.success(indicatorItemService.analyzeOnly(itemCode, params));
+    }
+
+    @Operation(summary = "获取指标项切片配置建议", description = "根据EXPLAIN分析自动推断最优切片配置，供execute-v2 SLICE模式使用")
+    @PostMapping("/{itemCode}/slice-config")
+    public Result<Map<String, Object>> sliceConfig(
+            @Parameter(description = "指标项编码") @PathVariable String itemCode,
+            @RequestBody Map<String, Object> params) {
+        Map<String, Object> analysis = indicatorItemService.analyzeOnly(itemCode, params);
+        Map<String, Object> resp = new java.util.LinkedHashMap<>();
+        resp.put("itemCode", itemCode);
+        resp.put("needConfirm", analysis.get("needConfirm"));
+        resp.put("sliceRecommendation", analysis.get("sliceRecommendation"));
+        resp.put("warning", analysis.get("warning"));
+        resp.put("message", analysis.get("message"));
+        return Result.success(resp);
+    }
+
     @Operation(summary = "校验SQL有效性", description = "校验指标项SQL语句是否符合规范")
     @PostMapping("/validate-sql")
     public Result<Map<String, Object>> validateSql(@Parameter(description = "SQL语句") @RequestBody String sql) {

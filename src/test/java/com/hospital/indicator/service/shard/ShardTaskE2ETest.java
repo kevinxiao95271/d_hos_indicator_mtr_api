@@ -127,7 +127,7 @@ class ShardTaskE2ETest {
 
         // 2. 为每个切片添加中间表信息
         String tableName = "mid_test_table";
-        String sourceSql = "SELECT '#{startDate}' as data_date, COUNT(*) as cnt FROM D_MR WHERE B15 BETWEEN #{startDate} AND #{endDate}";
+        String sourceSql = "SELECT #{startDate} as data_date, COUNT(*) as cnt FROM QM_I_INPATIENT_INFO WHERE OUTDATE BETWEEN #{startDate} AND #{endDate}";
 
         for (Map<String, Object> slice : slices) {
             slice.put("tableName", tableName);
