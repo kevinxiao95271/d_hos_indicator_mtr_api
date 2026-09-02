@@ -80,7 +80,7 @@ public class IndicatorSaveDTO {
     @Schema(description = "指标分类：医疗质量、运营效率、财务成本、患者安全等", example = "医疗质量")
     private String metricCategory;
 
-    @Schema(description = "目标值（用于达标率/质检判断）", example = "0.005")
+    @Schema(description = "目标值（与指标单位一致；百分比填展示值，如0.5表示0.5%）", example = "0.5")
     private java.math.BigDecimal targetValue;
 
     @Schema(description = "监测方向：INCREASE(逐步提高) / DECREASE(逐步降低) / MONITOR(仅监测)",

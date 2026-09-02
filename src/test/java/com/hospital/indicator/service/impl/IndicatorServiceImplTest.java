@@ -73,6 +73,53 @@ class IndicatorServiceImplTest {
         assertEquals(ErrorCode.INDICATOR_CONFIG_CONFLICT, error.getCode());
     }
 
+    @Test
+    void shouldRejectPercentageRateWithoutTimesOneHundred() {
+        IndicatorServiceImpl service = spy(new IndicatorServiceImpl());
+        doReturn(null).when(service).getOne(any());
+        IndicatorSaveDTO dto = ratioLeaf("PERCENT_RATE", "测试病死率", "a1/a2", "%");
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.saveOrUpdateIndicator(dto));
+
+        assertEquals(ErrorCode.INDICATOR_CONFIG_CONFLICT, error.getCode());
+    }
+
+    @Test
+    void shouldRejectPermilleRateWithoutTimesOneThousand() {
+        IndicatorServiceImpl service = spy(new IndicatorServiceImpl());
+        doReturn(null).when(service).getOne(any());
+        IndicatorSaveDTO dto = ratioLeaf("PERMILLE_RATE", "测试发生率", "a1/a2*100", "‰");
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.saveOrUpdateIndicator(dto));
+
+        assertEquals(ErrorCode.INDICATOR_CONFIG_CONFLICT, error.getCode());
+    }
+
+    @Test
+    void shouldPersistRateWithMatchingScaleAndUnit() {
+        IndicatorServiceImpl service = spy(new IndicatorServiceImpl());
+        doReturn(null).when(service).getOne(any());
+        doReturn(true).when(service).saveOrUpdate(any(Indicator.class));
+        IndicatorSaveDTO dto = ratioLeaf("PERCENT_RATE", "测试病死率", "a1/a2*100", "%");
+
+        Indicator saved = service.saveOrUpdateIndicator(dto);
+
+        assertEquals("a1/a2*100", saved.getExpression());
+        assertEquals("%", saved.getUnit());
+    }
+
+    private IndicatorSaveDTO ratioLeaf(String code, String name, String expression, String unit) {
+        IndicatorSaveDTO dto = autoLeaf(code, null);
+        dto.setMetricName(name);
+        dto.setCalculationType("EXPRESSION");
+        dto.setExpression(expression);
+        dto.setRelatedItems("[\"a1\",\"a2\"]");
+        dto.setUnit(unit);
+        return dto;
+    }
+
     private IndicatorSaveDTO autoLeaf(String code, String parentCode) {
         IndicatorSaveDTO dto = new IndicatorSaveDTO();
         dto.setMetricCode(code);

@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -46,6 +47,10 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
             new HashSet<>(Arrays.asList("POOL_NATIONAL", "POOL_GRADE"));
     private static final Set<String> MONITOR_DIRECTIONS =
             new HashSet<>(Arrays.asList("INCREASE", "DECREASE", "MONITOR"));
+    private static final Pattern PERCENT_EXPRESSION =
+            Pattern.compile(".*\\*\\s*100(?:\\.0+)?\\s*$");
+    private static final Pattern PERMILLE_EXPRESSION =
+            Pattern.compile(".*\\*\\s*1000(?:\\.0+)?\\s*$");
 
     @Autowired
     private IndicatorPermissionMapper permissionMapper;
@@ -102,6 +107,7 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
                 StringUtils.trim(dto.getMetricPool()), "POOL_NATIONAL")));
         dto.setMonitorDirection(StringUtils.upperCase(StringUtils.trimToNull(dto.getMonitorDirection())));
         dto.setBusinessDirection(StringUtils.trimToNull(dto.getBusinessDirection()));
+        dto.setUnit(StringUtils.trimToNull(dto.getUnit()));
     }
 
     private void validateBasicValues(IndicatorSaveDTO dto) {
@@ -219,6 +225,7 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
             throw new BusinessException(ErrorCode.PARAM_INVALID,
                     "expression 格式无效，请使用指标项编码和四则运算符");
         }
+        validateRatioScale(dto);
         if (StringUtils.isBlank(dto.getRelatedItems())) {
             throw new BusinessException(ErrorCode.PARAM_INVALID,
                     "自动采集叶子指标必须填写 relatedItems JSON 数组");
@@ -231,6 +238,28 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
         } catch (JSONException e) {
             throw new BusinessException(ErrorCode.PARAM_INVALID,
                     "relatedItems 必须是 JSON 字符串数组，例如 [\"a0050\",\"a0052\"]");
+        }
+    }
+
+    private void validateRatioScale(IndicatorSaveDTO dto) {
+        if (!"EXPRESSION".equals(dto.getCalculationType())) {
+            return;
+        }
+
+        String unit = dto.getUnit();
+        boolean rateMetric = StringUtils.endsWith(dto.getMetricName(), "率")
+                || StringUtils.endsWith(dto.getMetricName(), "占比");
+        if (rateMetric && !"%".equals(unit) && !"‰".equals(unit)) {
+            throw new BusinessException(ErrorCode.INDICATOR_CONFIG_CONFLICT,
+                    "比例指标必须明确单位：百分比使用 %，千分比使用 ‰");
+        }
+        if ("%".equals(unit) && !PERCENT_EXPRESSION.matcher(dto.getExpression()).matches()) {
+            throw new BusinessException(ErrorCode.INDICATOR_CONFIG_CONFLICT,
+                    "百分比表达式必须以 * 100 结尾");
+        }
+        if ("‰".equals(unit) && !PERMILLE_EXPRESSION.matcher(dto.getExpression()).matches()) {
+            throw new BusinessException(ErrorCode.INDICATOR_CONFIG_CONFLICT,
+                    "千分比表达式必须以 * 1000 结尾");
         }
     }
 
