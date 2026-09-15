@@ -1,6 +1,7 @@
 package com.hospital.indicator.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,6 +23,18 @@ public class IndicatorDeptScope {
 
     @Schema(description = "指标编码")
     private String metricCode;
+
+    @Schema(description = "迁移前历史指标编码")
+    @TableField(exist = false)
+    private String legacyCode;
+
+    @Schema(description = "纯指标名称")
+    @TableField(exist = false)
+    private String metricName;
+
+    @Schema(description = "展示名称")
+    @TableField(exist = false)
+    private String displayName;
 
     @Schema(description = "科室ID（根科室）")
     private Long rootDeptId;

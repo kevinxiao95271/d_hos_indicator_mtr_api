@@ -124,7 +124,9 @@ public class ReportTaskServiceImpl implements ReportTaskService {
             sv.setSubmitTime(s.getSubmitTime());
             sv.setReviewComment(s.getReviewComment());
             if (StringUtils.isNotBlank(s.getMetricCodes())) {
-                sv.setMetricCodes(JSON.parseArray(s.getMetricCodes(), String.class));
+                List<String> codes = JSON.parseArray(s.getMetricCodes(), String.class);
+                sv.setMetricCodes(codes);
+                sv.setIndicators(buildIndicatorRefs(codes));
             }
             return sv;
         }).collect(Collectors.toList());
@@ -270,9 +272,32 @@ public class ReportTaskServiceImpl implements ReportTaskService {
             sv.setDeptId(item.getDeptId());
             sv.setDeptName(item.getDeptName());
             if (StringUtils.isNotBlank(item.getMetricCodes())) {
-                sv.setMetricCodes(JSON.parseArray(item.getMetricCodes(), String.class));
+                List<String> codes = JSON.parseArray(item.getMetricCodes(), String.class);
+                sv.setMetricCodes(codes);
+                sv.setIndicators(buildIndicatorRefs(codes));
             }
             return sv;
+        }).collect(Collectors.toList());
+    }
+
+    private List<ReportTaskDetailVO.IndicatorRefVO> buildIndicatorRefs(List<String> metricCodes) {
+        if (metricCodes == null || metricCodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Indicator> indicators = indicatorMapper.selectList(
+                new LambdaQueryWrapper<Indicator>().in(Indicator::getMetricCode, metricCodes));
+        Map<String, Indicator> byCode = indicators.stream()
+                .collect(Collectors.toMap(Indicator::getMetricCode, i -> i, (a, b) -> a));
+        return metricCodes.stream().map(code -> {
+            Indicator indicator = byCode.get(code);
+            ReportTaskDetailVO.IndicatorRefVO ref = new ReportTaskDetailVO.IndicatorRefVO();
+            ref.setMetricCode(code);
+            if (indicator != null) {
+                ref.setLegacyCode(indicator.getLegacyCode());
+                ref.setMetricName(indicator.getMetricName());
+                ref.setDisplayName(indicator.getDisplayName());
+            }
+            return ref;
         }).collect(Collectors.toList());
     }
 
@@ -386,13 +411,13 @@ public class ReportTaskServiceImpl implements ReportTaskService {
             if (items.isEmpty()) {
                 // 无指标项，直接填结果行
                 rows.add(Arrays.asList(
-                        code, indicator.getMetricName(),
+                        code, indicator.getDisplayName(),
                         StringUtils.defaultString(indicator.getExpression()), "", "【填报结果】", "", ""));
             } else {
                 // 有指标项，每项一行
                 for (IndicatorItem item : items) {
                     rows.add(Arrays.asList(
-                            code, indicator.getMetricName(),
+                            code, indicator.getDisplayName(),
                             StringUtils.defaultString(indicator.getExpression()),
                             item.getItemCode(), item.getItemName(), "", ""));
                 }

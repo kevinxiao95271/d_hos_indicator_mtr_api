@@ -21,8 +21,14 @@ public class IndicatorTreeDTO {
     @Schema(description = "指标编码")
     private String metricCode;
 
+    @Schema(description = "迁移前的历史指标编码")
+    private String legacyCode;
+
     @Schema(description = "指标名称")
     private String metricName;
+
+    @Schema(description = "展示名称，由标准编码和纯指标名称拼接")
+    private String displayName;
 
     @Schema(description = "父级指标编码")
     private String parentCode;

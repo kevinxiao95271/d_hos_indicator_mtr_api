@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hospital.indicator.common.Result;
 import com.hospital.indicator.entity.IndicatorResult;
 import com.hospital.indicator.mapper.IndicatorResultMapper;
+import com.hospital.indicator.service.IndicatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +28,21 @@ public class DatasetController {
 
     @Autowired
     private IndicatorResultMapper indicatorResultMapper;
+
+    @Autowired
+    private IndicatorService indicatorService;
+
+    private void enrichResults(List<IndicatorResult> results) {
+        results.forEach(result -> {
+            com.hospital.indicator.entity.Indicator indicator =
+                    indicatorService.getByMetricCodeOrLegacyCode(result.getMetricCode());
+            if (indicator != null) {
+                result.setLegacyCode(indicator.getLegacyCode());
+                result.setMetricName(indicator.getMetricName());
+                result.setDisplayName(indicator.getDisplayName());
+            }
+        });
+    }
 
     @Operation(summary = "数据集列表（不分页）",
                description = "返回所有已完成批量计算的时间切片，每个切片即一个数据集。\n\n"
@@ -78,6 +94,7 @@ public class DatasetController {
         if (results.isEmpty()) {
             return Result.error(30404, "数据集不存在：" + id);
         }
+        enrichResults(results);
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("datasetId",     id);

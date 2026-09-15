@@ -28,9 +28,17 @@ public class Indicator implements Serializable {
     @TableField("metric_code")
     private String metricCode;
 
+    @Schema(description = "迁移前的历史指标编码（仅用于兼容旧调用）")
+    @TableField("legacy_code")
+    private String legacyCode;
+
     @Schema(description = "指标名称")
     @TableField("metric_name")
     private String metricName;
+
+    @Schema(description = "展示名称，由标准编码和纯指标名称拼接")
+    @TableField(exist = false)
+    private String displayName;
 
     @Schema(description = "父级指标编码")
     @TableField("parent_code")
@@ -111,5 +119,15 @@ public class Indicator implements Serializable {
     @Schema(description = "更新时间")
     @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+
+    public String getDisplayName() {
+        if (metricCode == null || metricCode.trim().isEmpty()) {
+            return metricName;
+        }
+        if (metricName == null || metricName.trim().isEmpty()) {
+            return metricCode;
+        }
+        return metricCode + metricName;
+    }
 
 }

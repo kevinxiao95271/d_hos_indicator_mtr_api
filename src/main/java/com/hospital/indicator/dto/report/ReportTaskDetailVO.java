@@ -56,8 +56,19 @@ public class ReportTaskDetailVO {
         private Long deptId;
         private String deptName;
         private List<String> metricCodes;
+        @Schema(description = "指标展示信息")
+        private List<IndicatorRefVO> indicators;
         private String fillStatus;
         private LocalDateTime submitTime;
         private String reviewComment;
+    }
+
+    @Data
+    @Schema(description = "指标编码及展示名称")
+    public static class IndicatorRefVO {
+        private String metricCode;
+        private String legacyCode;
+        private String metricName;
+        private String displayName;
     }
 }

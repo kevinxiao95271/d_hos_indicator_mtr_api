@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS `t_indicator_item` (
 CREATE TABLE IF NOT EXISTS `t_indicator` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `metric_code` VARCHAR(50) NOT NULL COMMENT '指标编码',
+    `legacy_code` VARCHAR(50) COMMENT '迁移前历史指标编码',
     `metric_name` VARCHAR(200) NOT NULL COMMENT '指标名称',
     `parent_code` VARCHAR(50) COMMENT '父级指标编码',
     `indicator_level` INT NOT NULL DEFAULT 1 COMMENT '指标层级',
@@ -44,7 +45,8 @@ CREATE TABLE IF NOT EXISTS `t_indicator` (
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_metric_code` (`metric_code`)
+    UNIQUE KEY `uk_metric_code` (`metric_code`),
+    UNIQUE KEY `uk_legacy_code` (`legacy_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标表';
 
 -- 3. 指标结果表

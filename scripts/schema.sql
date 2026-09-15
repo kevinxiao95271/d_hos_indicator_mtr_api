@@ -36,6 +36,7 @@ DROP TABLE IF EXISTS `t_indicator`;
 CREATE TABLE `t_indicator` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `metric_code` VARCHAR(50) NOT NULL COMMENT '指标编码（如 10.3.1）',
+    `legacy_code` VARCHAR(50) COMMENT '迁移前历史指标编码',
     `metric_name` VARCHAR(200) NOT NULL COMMENT '指标名称',
     `parent_code` VARCHAR(50) COMMENT '父级指标编码',
     `indicator_level` INT NOT NULL DEFAULT 1 COMMENT '指标层级：1-一级、2-二级...',
@@ -56,6 +57,7 @@ CREATE TABLE `t_indicator` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_metric_code` (`metric_code`),
+    UNIQUE KEY `uk_legacy_code` (`legacy_code`),
     KEY `idx_parent_code` (`parent_code`),
     KEY `idx_is_leaf` (`is_leaf`),
     KEY `idx_metric_pool` (`metric_pool`),

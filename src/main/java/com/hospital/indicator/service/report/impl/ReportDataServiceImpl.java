@@ -92,7 +92,9 @@ public class ReportDataServiceImpl implements ReportDataService {
 
             FillSheetVO.MetricRowVO row = new FillSheetVO.MetricRowVO();
             row.setMetricCode(code);
+            row.setLegacyCode(indicator.getLegacyCode());
             row.setMetricName(indicator.getMetricName());
+            row.setDisplayName(indicator.getDisplayName());
             row.setFormula(indicator.getExpression());
             row.setInputType(indicator.getInputType());
             row.setEffectiveInputMode(effectiveInputMode);
@@ -307,7 +309,7 @@ public class ReportDataServiceImpl implements ReportDataService {
                 if (!metricNames.containsKey(d.getMetricCode())) {
                     Indicator indicator = indicatorMapper.selectOne(
                             new LambdaQueryWrapper<Indicator>().eq(Indicator::getMetricCode, d.getMetricCode()));
-                    metricNames.put(d.getMetricCode(), indicator != null ? indicator.getMetricName() : "");
+                    metricNames.put(d.getMetricCode(), indicator != null ? indicator.getDisplayName() : "");
                 }
                 BigDecimal val = d.getIsResultRow() == 1 ? d.getResultValue() : d.getInputValue();
                 rows.add(Arrays.asList(

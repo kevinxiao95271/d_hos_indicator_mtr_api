@@ -5,6 +5,7 @@ import com.hospital.indicator.common.Result;
 import com.hospital.indicator.context.UserContext;
 import com.hospital.indicator.entity.IndicatorDeptScope;
 import com.hospital.indicator.service.IndicatorScopeService;
+import com.hospital.indicator.service.IndicatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +26,28 @@ public class IndicatorScopeController {
     @Autowired
     private IndicatorScopeService scopeService;
 
+    @Autowired
+    private IndicatorService indicatorService;
+
+    private String canonicalMetricCode(String metricCode) {
+        com.hospital.indicator.entity.Indicator indicator =
+                indicatorService.getByMetricCodeOrLegacyCode(metricCode);
+        return indicator == null ? metricCode : indicator.getMetricCode();
+    }
+
+    private List<IndicatorDeptScope> enrichScopes(List<IndicatorDeptScope> scopes) {
+        scopes.forEach(scope -> {
+            com.hospital.indicator.entity.Indicator indicator =
+                    indicatorService.getByMetricCodeOrLegacyCode(scope.getMetricCode());
+            if (indicator != null) {
+                scope.setLegacyCode(indicator.getLegacyCode());
+                scope.setMetricName(indicator.getMetricName());
+                scope.setDisplayName(indicator.getDisplayName());
+            }
+        });
+        return scopes;
+    }
+
     /** 仅超管（dataScope=50）可执行写操作，否则抛 403 */
     private void requireAdmin() {
         UserContext user = UserContext.get();
@@ -39,14 +62,15 @@ public class IndicatorScopeController {
     @GetMapping("/by-dept/{deptId}")
     public Result<List<IndicatorDeptScope>> listByDept(
             @Parameter(description = "科室ID") @PathVariable Long deptId) {
-        return Result.success(scopeService.listByDept(deptId));
+        return Result.success(enrichScopes(scopeService.listByDept(deptId)));
     }
 
     @Operation(summary = "查询指标已绑定的科室列表")
     @GetMapping("/by-metric/{metricCode}")
     public Result<List<IndicatorDeptScope>> listByMetric(
             @Parameter(description = "指标编码") @PathVariable String metricCode) {
-        return Result.success(scopeService.listByMetric(metricCode));
+        return Result.success(enrichScopes(
+                scopeService.listByMetric(canonicalMetricCode(metricCode))));
     }
 
     // ─────────────────────────── 新增单条 ───────────────────────────
@@ -65,7 +89,7 @@ public class IndicatorScopeController {
             return Result.error(30400, "缺少必填参数 metricCode");
         }
         Long deptId = Long.valueOf(deptIdObj.toString());
-        String metricCode = metricCodeObj.toString();
+        String metricCode = canonicalMetricCode(metricCodeObj.toString());
         Integer isPrimaryOwner = body.containsKey("isPrimaryOwner")
                 ? Integer.valueOf(body.get("isPrimaryOwner").toString()) : 1;
         scopeService.addBinding(deptId, metricCode, isPrimaryOwner);
@@ -82,6 +106,12 @@ public class IndicatorScopeController {
         Long deptId = Long.valueOf(body.get("deptId").toString());
         @SuppressWarnings("unchecked")
         List<String> metricCodes = (List<String>) body.get("metricCodes");
+        if (metricCodes != null) {
+            metricCodes = metricCodes.stream()
+                    .map(this::canonicalMetricCode)
+                    .distinct()
+                    .collect(java.util.stream.Collectors.toList());
+        }
         Integer isPrimaryOwner = body.containsKey("isPrimaryOwner")
                 ? Integer.valueOf(body.get("isPrimaryOwner").toString()) : 1;
         scopeService.replaceByDept(deptId, metricCodes, isPrimaryOwner);
@@ -93,7 +123,7 @@ public class IndicatorScopeController {
     @PostMapping("/replace-by-metric")
     public Result<Void> replaceByMetric(@RequestBody Map<String, Object> body) {
         requireAdmin();
-        String metricCode = body.get("metricCode").toString();
+        String metricCode = canonicalMetricCode(body.get("metricCode").toString());
         @SuppressWarnings("unchecked")
         List<Object> rawIds = (List<Object>) body.get("deptIds");
         List<Long> deptIds = rawIds == null ? java.util.Collections.emptyList()
@@ -112,7 +142,7 @@ public class IndicatorScopeController {
             @Parameter(description = "科室ID") @RequestParam Long deptId,
             @Parameter(description = "指标编码") @RequestParam String metricCode) {
         requireAdmin();
-        scopeService.removeBinding(deptId, metricCode);
+        scopeService.removeBinding(deptId, canonicalMetricCode(metricCode));
         return Result.success("解绑成功", null);
     }
 
@@ -130,7 +160,7 @@ public class IndicatorScopeController {
     public Result<Void> clearByMetric(
             @Parameter(description = "指标编码") @PathVariable String metricCode) {
         requireAdmin();
-        scopeService.clearByMetric(metricCode);
+        scopeService.clearByMetric(canonicalMetricCode(metricCode));
         return Result.success("已清空该指标所有科室绑定", null);
     }
 }

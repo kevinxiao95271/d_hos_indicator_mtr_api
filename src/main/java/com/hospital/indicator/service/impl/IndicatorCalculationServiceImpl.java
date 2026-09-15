@@ -13,6 +13,7 @@ import com.hospital.indicator.mapper.IndicatorMapper;
 import com.hospital.indicator.mapper.IndicatorResultMapper;
 import com.hospital.indicator.mapper.IndicatorResultDeptMapper;
 import com.hospital.indicator.service.IndicatorCalculationService;
+import com.hospital.indicator.service.IndicatorService;
 import com.hospital.indicator.util.ExpressionParser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -55,6 +56,9 @@ public class IndicatorCalculationServiceImpl implements IndicatorCalculationServ
     @Autowired
     private IndicatorResultDeptMapper indicatorResultDeptMapper;
 
+    @Autowired
+    private IndicatorService indicatorService;
+
     /**
      * SQL参数占位符正则
      */
@@ -69,6 +73,7 @@ public class IndicatorCalculationServiceImpl implements IndicatorCalculationServ
         try {
             // 1. 查询指标配置
             Indicator indicator = getIndicatorByCode(metricCode);
+            metricCode = indicator.getMetricCode();
             if (indicator.getIsLeaf() != 1) {
                 throw new BusinessException("只能计算叶子节点指标");
             }
@@ -96,7 +101,9 @@ public class IndicatorCalculationServiceImpl implements IndicatorCalculationServ
             // 5. 构建结果JSON（包含所有指标项的值）
             Map<String, Object> resultJsonMap = new HashMap<>();
             resultJsonMap.put("metric_code", metricCode);
+            resultJsonMap.put("legacy_code", indicator.getLegacyCode());
             resultJsonMap.put("metric_name", indicator.getMetricName());
+            resultJsonMap.put("display_name", indicator.getDisplayName());
             resultJsonMap.put("result_value", resultValue);
             resultJsonMap.put("unit", indicator.getUnit());
             resultJsonMap.put("expression", indicator.getExpression());
@@ -186,6 +193,7 @@ public class IndicatorCalculationServiceImpl implements IndicatorCalculationServ
         try {
             // 1. 查询指标配置
             Indicator indicator = getIndicatorByCode(metricCode);
+            metricCode = indicator.getMetricCode();
             if (indicator.getIsLeaf() != 1) {
                 throw new BusinessException("只能计算叶子节点指标");
             }
@@ -238,7 +246,9 @@ public class IndicatorCalculationServiceImpl implements IndicatorCalculationServ
                     // 构建结果JSON
                     Map<String, Object> resultJsonMap = new HashMap<>();
                     resultJsonMap.put("metric_code", metricCode);
+                    resultJsonMap.put("legacy_code", indicator.getLegacyCode());
                     resultJsonMap.put("metric_name", indicator.getMetricName());
+                    resultJsonMap.put("display_name", indicator.getDisplayName());
                     resultJsonMap.put("dept_code", deptCode);
                     resultJsonMap.put("dept_name", deptName);
                     resultJsonMap.put("result_value", resultValue);
@@ -282,9 +292,7 @@ public class IndicatorCalculationServiceImpl implements IndicatorCalculationServ
      * 根据编码查询指标
      */
     private Indicator getIndicatorByCode(String metricCode) {
-        LambdaQueryWrapper<Indicator> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Indicator::getMetricCode, metricCode);
-        Indicator indicator = indicatorMapper.selectOne(wrapper);
+        Indicator indicator = indicatorService.getByMetricCodeOrLegacyCode(metricCode);
 
         if (indicator == null) {
             throw new BusinessException("指标不存在：" + metricCode);

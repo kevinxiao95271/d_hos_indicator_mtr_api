@@ -51,6 +51,10 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
             Pattern.compile(".*\\*\\s*100(?:\\.0+)?\\s*$");
     private static final Pattern PERMILLE_EXPRESSION =
             Pattern.compile(".*\\*\\s*1000(?:\\.0+)?\\s*$");
+    private static final Pattern GRADE_STANDARD_CODE =
+            Pattern.compile("^\\d+(?:\\.\\d+)+$");
+    private static final Pattern CODE_PREFIX_IN_NAME =
+            Pattern.compile("^\\s*\\d+(?:\\.\\d+)+\\s*.*$");
 
     @Autowired
     private IndicatorPermissionMapper permissionMapper;
@@ -67,6 +71,9 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
             if (existing == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "指标不存在，id=" + dto.getId());
             }
+            if (StringUtils.equals(dto.getMetricCode(), existing.getLegacyCode())) {
+                dto.setMetricCode(existing.getMetricCode());
+            }
             if (!existing.getMetricCode().equals(dto.getMetricCode())) {
                 throw new BusinessException(ErrorCode.INDICATOR_CONFIG_CONFLICT,
                         "更新指标时不允许修改 metricCode，请新建指标或保持原编码");
@@ -74,7 +81,8 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
         }
 
         Indicator sameCode = this.getOne(new LambdaQueryWrapper<Indicator>()
-                .eq(Indicator::getMetricCode, dto.getMetricCode())
+                .and(wrapper -> wrapper.eq(Indicator::getMetricCode, dto.getMetricCode())
+                        .or().eq(Indicator::getLegacyCode, dto.getMetricCode()))
                 .last("LIMIT 1"));
         if (sameCode != null && (dto.getId() == null || !sameCode.getId().equals(dto.getId()))) {
             throw new BusinessException(ErrorCode.INDICATOR_CODE_DUPLICATE,
@@ -93,6 +101,17 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
                     "指标编码已存在：" + dto.getMetricCode());
         }
         return indicator;
+    }
+
+    @Override
+    public Indicator getByMetricCodeOrLegacyCode(String metricCode) {
+        if (StringUtils.isBlank(metricCode)) {
+            return null;
+        }
+        return this.getOne(new LambdaQueryWrapper<Indicator>()
+                .and(wrapper -> wrapper.eq(Indicator::getMetricCode, metricCode)
+                        .or().eq(Indicator::getLegacyCode, metricCode))
+                .last("LIMIT 1"));
     }
 
     private void normalize(IndicatorSaveDTO dto) {
@@ -126,6 +145,16 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
         if (!METRIC_POOLS.contains(dto.getMetricPool())) {
             throw new BusinessException(ErrorCode.PARAM_INVALID,
                     "metricPool 仅支持 POOL_NATIONAL 或 POOL_GRADE");
+        }
+        if ("POOL_GRADE".equals(dto.getMetricPool()) && Integer.valueOf(1).equals(dto.getIsLeaf())) {
+            if (!GRADE_STANDARD_CODE.matcher(dto.getMetricCode()).matches()) {
+                throw new BusinessException(ErrorCode.PARAM_INVALID,
+                        "等评叶子指标 metricCode 必须使用 Excel 标准编码，如 2.1.7");
+            }
+            if (CODE_PREFIX_IN_NAME.matcher(dto.getMetricName()).matches()) {
+                throw new BusinessException(ErrorCode.PARAM_INVALID,
+                        "metricName 只保存纯指标名称，不应包含标准编码前缀");
+            }
         }
         if (dto.getMonitorDirection() != null
                 && !MONITOR_DIRECTIONS.contains(dto.getMonitorDirection())) {
@@ -163,13 +192,12 @@ public class IndicatorServiceImpl extends ServiceImpl<IndicatorMapper, Indicator
                     "指标不能将自身设置为父级");
         }
 
-        Indicator parent = this.getOne(new LambdaQueryWrapper<Indicator>()
-                .eq(Indicator::getMetricCode, dto.getParentCode())
-                .last("LIMIT 1"));
+        Indicator parent = getByMetricCodeOrLegacyCode(dto.getParentCode());
         if (parent == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND,
                     "父级指标不存在，parentCode=" + dto.getParentCode());
         }
+        dto.setParentCode(parent.getMetricCode());
         if (Integer.valueOf(1).equals(parent.getIsLeaf())) {
             throw new BusinessException(ErrorCode.INDICATOR_CONFIG_CONFLICT,
                     "父级指标必须是非叶子节点，parentCode=" + dto.getParentCode());

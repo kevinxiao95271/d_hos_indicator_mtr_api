@@ -67,7 +67,9 @@ public class ReportPreviewVO {
     public static class SummaryRow {
         private int seq;
         private String metricCode;
+        private String legacyCode;
         private String metricName;
+        private String displayName;
         /** 当前值（字符串，便于格式化） */
         private String currentValue;
         /** 目标值 */
@@ -82,7 +84,9 @@ public class ReportPreviewVO {
     public static class NonCompliantDeptRow {
         private int seq;
         private String metricCode;
+        private String legacyCode;
         private String metricName;
+        private String displayName;
         private String deptName;
         private String currentValue;
         private String targetValue;
@@ -93,7 +97,9 @@ public class ReportPreviewVO {
     @Data
     public static class IndicatorSection {
         private String metricCode;
+        private String legacyCode;
         private String metricName;
+        private String displayName;
 
         /** 基本情况 */
         private BasicInfo basicInfo;
@@ -128,6 +134,7 @@ public class ReportPreviewVO {
     public static class PeriodValue {
         private int seq;
         private String metricName;
+        private String displayName;
         private String period;
         private String value;
     }
@@ -153,6 +160,7 @@ public class ReportPreviewVO {
         private int seq;
         private String deptName;
         private String metricName;
+        private String displayName;
         private String value;
         /** 整改措施（预留，数据库暂无此字段，前端可填写） */
         private String correction;

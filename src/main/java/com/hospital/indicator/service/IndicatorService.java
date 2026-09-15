@@ -24,6 +24,14 @@ public interface IndicatorService extends IService<Indicator> {
     Indicator saveOrUpdateIndicator(IndicatorSaveDTO dto);
 
     /**
+     * 根据标准编码或历史编码查询指标。
+     *
+     * @param metricCode 标准编码或历史编码
+     * @return 指标，不存在时返回 null
+     */
+    Indicator getByMetricCodeOrLegacyCode(String metricCode);
+
+    /**
      * 查询指标树形结构
      *
      * @return 指标树

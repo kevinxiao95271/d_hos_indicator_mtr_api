@@ -94,9 +94,7 @@ public class IndicatorController {
     @Operation(summary = "根据编码查询指标详情", description = "根据指标编码查询详细信息，不存在时返回 30404")
     @GetMapping("/code/{metricCode}")
     public Result<Indicator> getByCode(@Parameter(description = "指标编码") @PathVariable String metricCode) {
-        LambdaQueryWrapper<Indicator> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Indicator::getMetricCode, metricCode);
-        Indicator indicator = indicatorService.getOne(queryWrapper);
+        Indicator indicator = indicatorService.getByMetricCodeOrLegacyCode(metricCode);
         if (indicator == null) {
             return Result.error(30404, "指标不存在，metricCode=" + metricCode);
         }

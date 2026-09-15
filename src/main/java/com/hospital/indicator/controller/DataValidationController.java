@@ -205,7 +205,9 @@ public class DataValidationController {
                                             String timeDimension, String timeValue) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("metricCode",       ind.getMetricCode());
+        item.put("legacyCode",       ind.getLegacyCode());
         item.put("metricName",       ind.getMetricName());
+        item.put("displayName",      ind.getDisplayName());
         item.put("targetValue",      ind.getTargetValue());
         item.put("monitorDirection", ind.getMonitorDirection());
         item.put("unit",             ind.getUnit());

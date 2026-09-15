@@ -30,6 +30,18 @@ public class IndicatorResult implements Serializable {
     @TableField("metric_code")
     private String metricCode;
 
+    @Schema(description = "迁移前历史指标编码")
+    @TableField(exist = false)
+    private String legacyCode;
+
+    @Schema(description = "纯指标名称")
+    @TableField(exist = false)
+    private String metricName;
+
+    @Schema(description = "展示名称")
+    @TableField(exist = false)
+    private String displayName;
+
     @Schema(description = "时间维度：YEAR(年)、QUARTER(季)、MONTH(月)、DAY(日)")
     @TableField("time_dimension")
     private String timeDimension;

@@ -119,7 +119,7 @@ public class ReportWordBuilder {
             String statusLabel = "COMPLIANT".equals(r.getStatus()) ? "达标"
                     : "NON_COMPLIANT".equals(r.getStatus()) ? "未达标" : "其他";
             addTableRow(sb, new String[]{
-                    String.valueOf(r.getSeq()), esc(r.getMetricName()), r.getCurrentValue(),
+                    String.valueOf(r.getSeq()), esc(r.getDisplayName()), r.getCurrentValue(),
                     r.getTargetValue(), r.getUnit(), statusLabel});
         }
         endTable(sb);
@@ -132,7 +132,7 @@ public class ReportWordBuilder {
             beginTable(sb, h2);
             for (NonCompliantDeptRow r : summary.getNonCompliantDeptRows()) {
                 addTableRow(sb, new String[]{
-                        String.valueOf(r.getSeq()), esc(r.getMetricName()),
+                        String.valueOf(r.getSeq()), esc(r.getDisplayName()),
                         esc(r.getDeptName()), r.getCurrentValue(), r.getTargetValue()});
             }
             endTable(sb);
@@ -156,7 +156,7 @@ public class ReportWordBuilder {
             String statusLabel = "COMPLIANT".equals(r.getStatus()) ? "达标"
                     : "NON_COMPLIANT".equals(r.getStatus()) ? "未达标" : "其他";
             addTableRow(sb, new String[]{
-                    String.valueOf(r.getSeq()), esc(r.getMetricName()), r.getCurrentValue(),
+                    String.valueOf(r.getSeq()), esc(r.getDisplayName()), r.getCurrentValue(),
                     r.getTargetValue(), r.getUnit(), statusLabel});
         }
         endTable(sb);
@@ -171,7 +171,7 @@ public class ReportWordBuilder {
     }
 
     private static void appendIndicatorSection(StringBuilder sb, IndicatorSection sec) {
-        appendHeading(sb, esc(sec.getMetricCode()) + "、" + esc(sec.getMetricName()), 2);
+        appendHeading(sb, esc(sec.getDisplayName()), 2);
 
         // 基本情况
         appendHeading(sb, "基本情况", 3);
@@ -187,12 +187,12 @@ public class ReportWordBuilder {
 
         // 变化趋势
         appendHeading(sb, "变化趋势", 3);
-        appendPeriodTable(sb, sec.getTrendData(), sec.getMetricName());
+        appendPeriodTable(sb, sec.getTrendData(), sec.getDisplayName());
 
         // 环比
         appendHeading(sb, "环比", 3);
         if (sec.getMomData() != null) {
-            appendPeriodTable(sb, sec.getMomData().getSeries(), sec.getMetricName());
+            appendPeriodTable(sb, sec.getMomData().getSeries(), sec.getDisplayName());
             if (sec.getMomData().getMomRate() != null) {
                 appendPara(sb, "环比变化率：" + sec.getMomData().getMomRate(), false);
             }
@@ -201,7 +201,7 @@ public class ReportWordBuilder {
         // 同比
         appendHeading(sb, "同比", 3);
         if (sec.getYoyData() != null) {
-            appendPeriodTable(sb, sec.getYoyData().getSeries(), sec.getMetricName());
+            appendPeriodTable(sb, sec.getYoyData().getSeries(), sec.getDisplayName());
             if (sec.getYoyData().getYoyRate() != null) {
                 appendPara(sb, "同比变化率：" + sec.getYoyData().getYoyRate(), false);
             }
@@ -218,7 +218,7 @@ public class ReportWordBuilder {
             for (DeptRow r : deptData) {
                 addTableRow(sb, new String[]{
                         String.valueOf(r.getSeq()), esc(r.getDeptName()),
-                        esc(sec.getMetricName()), r.getValue(), esc(r.getCorrection())});
+                        esc(sec.getDisplayName()), r.getValue(), esc(r.getCorrection())});
             }
             endTable(sb);
         }

@@ -176,7 +176,9 @@ public class IndicatorReportServiceImpl implements IndicatorReportService {
                                           String dbStart, String dbEnd) {
         IndicatorSection sec = new IndicatorSection();
         sec.setMetricCode(ind.getMetricCode());
+        sec.setLegacyCode(ind.getLegacyCode());
         sec.setMetricName(ind.getMetricName());
+        sec.setDisplayName(ind.getDisplayName());
 
         String currentVal = latestResult != null ? formatValue(latestResult.getResultValue()) : "";
         String targetVal = ind.getTargetValue() != null ? formatValue(ind.getTargetValue()) : "";
@@ -201,6 +203,7 @@ public class IndicatorReportServiceImpl implements IndicatorReportService {
             PeriodValue pv = new PeriodValue();
             pv.setSeq(i + 1);
             pv.setMetricName(ind.getMetricName());
+            pv.setDisplayName(ind.getDisplayName());
             pv.setPeriod(dbPeriodToDisplay(r.getTimeValue()));
             pv.setValue(formatValue(r.getResultValue()));
             trend.add(pv);
@@ -215,6 +218,7 @@ public class IndicatorReportServiceImpl implements IndicatorReportService {
             PeriodValue pv = new PeriodValue();
             pv.setSeq(0);
             pv.setMetricName(ind.getMetricName());
+            pv.setDisplayName(ind.getDisplayName());
             pv.setPeriod(dbPeriodToDisplay(prevDbPeriod));
             pv.setValue(formatValue(prevResult.getResultValue()));
             momSeries.add(pv);
@@ -234,6 +238,7 @@ public class IndicatorReportServiceImpl implements IndicatorReportService {
             PeriodValue pv = new PeriodValue();
             pv.setSeq(i + 1);
             pv.setMetricName(ind.getMetricName());
+            pv.setDisplayName(ind.getDisplayName());
             pv.setPeriod(dbPeriodToDisplay(r.getTimeValue()));
             pv.setValue(formatValue(r.getResultValue()));
             yoySeries.add(pv);
@@ -252,6 +257,7 @@ public class IndicatorReportServiceImpl implements IndicatorReportService {
             row.setSeq(i + 1);
             row.setDeptName(d.getDeptName());
             row.setMetricName(ind.getMetricName());
+            row.setDisplayName(ind.getDisplayName());
             row.setValue(formatValue(d.getResultValue()));
             row.setCorrection("");
             deptRows.add(row);
@@ -282,7 +288,9 @@ public class IndicatorReportServiceImpl implements IndicatorReportService {
             SummaryRow row = new SummaryRow();
             row.setSeq(seq++);
             row.setMetricCode(ind.getMetricCode());
+            row.setLegacyCode(ind.getLegacyCode());
             row.setMetricName(ind.getMetricName());
+            row.setDisplayName(ind.getDisplayName());
             row.setCurrentValue(currentVal);
             row.setTargetValue(targetVal);
             row.setStatus(status);
@@ -300,7 +308,9 @@ public class IndicatorReportServiceImpl implements IndicatorReportService {
                     NonCompliantDeptRow ndr = new NonCompliantDeptRow();
                     ndr.setSeq(dSeq++);
                     ndr.setMetricCode(ind.getMetricCode());
+                    ndr.setLegacyCode(ind.getLegacyCode());
                     ndr.setMetricName(ind.getMetricName());
+                    ndr.setDisplayName(ind.getDisplayName());
                     ndr.setDeptName(dr.getDeptName());
                     ndr.setCurrentValue(dr.getValue());
                     ndr.setTargetValue(targetVal);

@@ -11,6 +11,7 @@ import com.hospital.indicator.mapper.IndicatorResultDeptMapper;
 import com.hospital.indicator.mapper.IndicatorResultMapper;
 import com.hospital.indicator.mapper.sys.IndicatorPermissionMapper;
 import com.hospital.indicator.service.IndicatorCalculationService;
+import com.hospital.indicator.service.IndicatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -58,6 +59,9 @@ public class IndicatorResultController {
     @Autowired
     private IndicatorMapper indicatorMapper;
 
+    @Autowired
+    private IndicatorService indicatorService;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     /** dataScope=50 表示超管，可查看全部 */
@@ -77,6 +81,40 @@ public class IndicatorResultController {
         return codes.isEmpty() ? Collections.emptyList() : codes;
     }
 
+    private String canonicalMetricCode(String metricCode) {
+        if (StringUtils.isBlank(metricCode)) {
+            return metricCode;
+        }
+        Indicator indicator = indicatorService.getByMetricCodeOrLegacyCode(metricCode.trim());
+        return indicator == null ? metricCode.trim() : indicator.getMetricCode();
+    }
+
+    private void enrichResult(IndicatorResult result) {
+        if (result == null) return;
+        Indicator indicator = indicatorService.getByMetricCodeOrLegacyCode(result.getMetricCode());
+        if (indicator != null) {
+            result.setLegacyCode(indicator.getLegacyCode());
+            result.setMetricName(indicator.getMetricName());
+            result.setDisplayName(indicator.getDisplayName());
+        }
+    }
+
+    private void enrichResults(List<IndicatorResult> results) {
+        if (results != null) results.forEach(this::enrichResult);
+    }
+
+    private void enrichDeptResults(List<IndicatorResultDept> results) {
+        if (results == null) return;
+        results.forEach(result -> {
+            Indicator indicator = indicatorService.getByMetricCodeOrLegacyCode(result.getMetricCode());
+            if (indicator != null) {
+                result.setLegacyCode(indicator.getLegacyCode());
+                result.setMetricName(indicator.getMetricName());
+                result.setDisplayName(indicator.getDisplayName());
+            }
+        });
+    }
+
     @Operation(summary = "执行单个指标计算", description = "根据指标编码和时间范围执行计算")
     @PostMapping("/calculate")
     public Result<IndicatorResult> calculate(
@@ -89,6 +127,7 @@ public class IndicatorResultController {
         LocalDate end = LocalDate.parse(endDate, DATE_FORMATTER);
 
         IndicatorResult result = calculationService.calculateIndicator(metricCode, timeDimension, start, end);
+        enrichResult(result);
 
         if ("SUCCESS".equals(result.getCalculationStatus())) {
             return Result.success("指标计算成功", result);
@@ -126,6 +165,7 @@ public class IndicatorResultController {
         }
 
         List<IndicatorResult> results = calculationService.batchCalculateIndicators(metricCodes, timeDimension, start, end);
+        enrichResults(results);
 
         long successCount = results.stream().filter(r -> "SUCCESS".equals(r.getCalculationStatus())).count();
         long failedCount = results.size() - successCount;
@@ -157,6 +197,7 @@ public class IndicatorResultController {
         wrapper.last("LIMIT 100");
 
         List<IndicatorResult> results = resultMapper.selectList(wrapper);
+        enrichResults(results);
         return Result.success(results);
     }
 
@@ -170,6 +211,7 @@ public class IndicatorResultController {
             @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
             @Parameter(description = "数据来源类型：AUTO/MANUAL（为空查全部）") @RequestParam(required = false) String sourceType) {
 
+        metricCode = canonicalMetricCode(metricCode);
         List<String> visibleCodes = getVisibleMetricCodes();
         if (visibleCodes != null && visibleCodes.isEmpty()) {
             return Result.success(Collections.emptyList());
@@ -200,6 +242,7 @@ public class IndicatorResultController {
 
         wrapper.orderByDesc(IndicatorResult::getTimeValue);
         List<IndicatorResult> results = resultMapper.selectList(wrapper);
+        enrichResults(results);
         return Result.success(results);
     }
 
@@ -227,6 +270,7 @@ public class IndicatorResultController {
     @GetMapping("/{id}")
     public Result<IndicatorResult> getById(@Parameter(description = "结果ID") @PathVariable Long id) {
         IndicatorResult result = resultMapper.selectById(id);
+        enrichResult(result);
         return Result.success(result);
     }
 
@@ -237,6 +281,7 @@ public class IndicatorResultController {
             @Parameter(description = "时间维度") @RequestParam(required = false) String timeDimension,
             @Parameter(description = "时间值") @RequestParam(required = false) String timeValue) {
 
+        metricCode = canonicalMetricCode(metricCode);
         List<String> visibleCodes = getVisibleMetricCodes();
         if (visibleCodes != null && !visibleCodes.contains(metricCode)) {
             return Result.success(Collections.emptyList());
@@ -254,6 +299,7 @@ public class IndicatorResultController {
 
         wrapper.orderByDesc(IndicatorResultDept::getResultValue);
         List<IndicatorResultDept> results = resultDeptMapper.selectList(wrapper);
+        enrichDeptResults(results);
         return Result.success(results);
     }
 
@@ -269,6 +315,7 @@ public class IndicatorResultController {
         LocalDate end = LocalDate.parse(endDate, DATE_FORMATTER);
 
         List<IndicatorResultDept> results = calculationService.calculateDeptDrill(metricCode, timeDimension, start, end);
+        enrichDeptResults(results);
 
         return Result.success("科室下钻计算完成，共计算 " + results.size() + " 个科室", results);
     }
@@ -325,7 +372,9 @@ public class IndicatorResultController {
 
             java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
             row.put("metricCode",       ind.getMetricCode());
+            row.put("legacyCode",       ind.getLegacyCode());
             row.put("metricName",       ind.getMetricName());
+            row.put("displayName",      ind.getDisplayName());
             row.put("unit",             ind.getUnit());
             row.put("targetValue",      ind.getTargetValue());
             row.put("monitorDirection", ind.getMonitorDirection());
@@ -424,9 +473,20 @@ public class IndicatorResultController {
                 + "模式二（横向）需传 metricCodes+timeDimension+timeValue");
         }
 
+        codeList = codeList.stream()
+                .map(this::canonicalMetricCode)
+                .distinct()
+                .collect(Collectors.toList());
+
         // ---------- 权限过滤 ----------
         List<String> visible = getVisibleMetricCodes();
-        if (visible != null && !visible.isEmpty()) codeList.retainAll(visible);
+        if (visible != null) {
+            if (visible.isEmpty()) {
+                return Result.success(buildCompareResp(isTrendMode, timeDimension,
+                        Collections.emptyList(), valueList, Collections.emptyList()));
+            }
+            codeList.retainAll(visible);
+        }
         if (codeList.isEmpty()) {
             return Result.success(buildCompareResp(isTrendMode, timeDimension,
                     Collections.emptyList(), Collections.emptyList(), Collections.emptyList()));
@@ -475,7 +535,9 @@ public class IndicatorResultController {
             }
             Map<String, Object> s = new LinkedHashMap<>();
             s.put("metricCode",  code);
+            s.put("legacyCode",  ind != null ? ind.getLegacyCode()  : null);
             s.put("metricName",  ind != null ? ind.getMetricName()  : code);
+            s.put("displayName", ind != null ? ind.getDisplayName() : code);
             s.put("unit",        ind != null ? ind.getUnit()         : null);
             s.put("targetValue", ind != null ? ind.getTargetValue()  : null);
             s.put("data", data);
@@ -484,7 +546,7 @@ public class IndicatorResultController {
             String tv = valueList.get(0);
             for (String code : codeList) {
                 Indicator ind = indMap.get(code);
-                xAxis.add(ind != null ? ind.getMetricName() : code);
+                xAxis.add(ind != null ? ind.getDisplayName() : code);
                 IndicatorResult r = idx.getOrDefault(code, Collections.emptyMap()).get(tv);
                 Map<String, Object> pt = new LinkedHashMap<>();
                 pt.put("timeValue",   tv);
@@ -493,7 +555,9 @@ public class IndicatorResultController {
                 pt.put("endDate",     r != null ? r.getEndDate()     : null);
                 Map<String, Object> s = new LinkedHashMap<>();
                 s.put("metricCode",  code);
+                s.put("legacyCode",  ind != null ? ind.getLegacyCode()  : null);
                 s.put("metricName",  ind != null ? ind.getMetricName()  : code);
+                s.put("displayName", ind != null ? ind.getDisplayName() : code);
                 s.put("unit",        ind != null ? ind.getUnit()         : null);
                 s.put("targetValue", ind != null ? ind.getTargetValue()  : null);
                 s.put("data", Collections.singletonList(pt));
@@ -532,6 +596,7 @@ public class IndicatorResultController {
             HttpServletResponse response) throws IOException {
 
         // ── 复用 /list 的查询逻辑 ──────────────────────────────────
+        metricCode = canonicalMetricCode(metricCode);
         List<String> visibleCodes = getVisibleMetricCodes();
         if (visibleCodes != null && visibleCodes.isEmpty()) {
             writeEmptyExcel(response, "指标结果");
@@ -561,10 +626,12 @@ public class IndicatorResultController {
         wrapper.orderByDesc(IndicatorResult::getTimeValue);
 
         List<IndicatorResult> results = resultMapper.selectList(wrapper);
+        enrichResults(results);
 
         // ── 构造表头 + 数据行 ──────────────────────────────────────
         List<List<String>> head = Arrays.asList(
                 Collections.singletonList("指标编码"),
+                Collections.singletonList("指标名称"),
                 Collections.singletonList("时间维度"),
                 Collections.singletonList("时间值"),
                 Collections.singletonList("开始日期"),
@@ -579,6 +646,7 @@ public class IndicatorResultController {
         for (IndicatorResult r : results) {
             rows.add(Arrays.asList(
                     r.getMetricCode(),
+                    r.getDisplayName(),
                     r.getTimeDimension(),
                     r.getTimeValue(),
                     r.getStartDate() != null ? r.getStartDate().toString() : "",

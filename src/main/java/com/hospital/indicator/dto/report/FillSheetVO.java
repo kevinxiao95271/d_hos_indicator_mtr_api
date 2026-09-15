@@ -35,8 +35,14 @@ public class FillSheetVO {
         @Schema(description = "指标编码")
         private String metricCode;
 
+        @Schema(description = "迁移前历史指标编码")
+        private String legacyCode;
+
         @Schema(description = "指标名称")
         private String metricName;
+
+        @Schema(description = "展示名称")
+        private String displayName;
 
         @Schema(description = "计算方法描述（表达式）")
         private String formula;
